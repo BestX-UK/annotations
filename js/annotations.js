@@ -330,16 +330,39 @@
 	function translatePath(d, xAxis, yAxis, xOffset, yOffset) {
 		var len = d.length,
 			i = 0,
-			path = [];
+			path = [],
+			arc = 0;
 
 		while (i < len) {
-			if (typeof d[i] === 'number' && typeof d[i + 1] === 'number') {
-				path[i] = xAxis.toPixels(d[i]) - xOffset;
-				path[i + 1] = yAxis.toPixels(d[i + 1]) - yOffset;
+			if (typeof d[i] === 'number' && typeof d[i + 1] === 'number'
+				&& (arc == 5 || arc == 1 || arc == 0) // start points of arc || end points of arc || not arc
+			) {
+				if(yAxis.isRadial) {
+					var radius = yAxis.center[2] / 2;
+					if(arc == 5) {
+						// d[i] and d[i+1] are deltas to add to radius
+						path[i] = radius + d[i];
+						path[i+1] = radius + d[i+1];
+					} else {
+						// d[i] is a value in the range of the dial and d[i+1] is delta to add to radius
+						var pt = yAxis.getPosition(d[i], radius + d[i+1]);
+						path[i] = pt.x;
+						path[i+1] = pt.y;
+					}
+				} else {
+					path[i] = xAxis.toPixels(d[i]) - xOffset;
+					path[i + 1] = yAxis.toPixels(d[i + 1]) - yOffset;
+				}
 				i += 2;
 			} else {
+				if(d[i] === 'A') {
+					arc = 6; // takes 6 iterations to consume arc - A, (rx, ry), f1, f2, f3, (ex, ey)
+				}
 				path[i] = d[i];
 				i += 1;
+			}
+			if(arc > 0) {
+				arc--;
 			}
 		}
 
@@ -356,14 +379,18 @@
 		return group;
 	}
 
-	function createClipPath(chart, y) {
-		var clipBox = {
-			x: y.left,
-			y: y.top,
-			width: y.width,
-			height: y.height
+	function createClipBox(chart, y) {
+		var ref = y.isRadial ? chart.plotBox : y;
+		return {
+			x: ref[y.isRadial ? 'x' : 'left'],
+			y: ref[y.isRadial ? 'y' : 'top'],
+			width: ref.width,
+			height: ref.height
 		};
-				
+	}
+
+	function createClipPath(chart, y) {
+		var clipBox = createClipBox(chart, y);
 		return chart.renderer.clipRect(clipBox);
 	}
 
@@ -497,6 +524,7 @@
 				renderer = annotation.chart.renderer,
 				group = annotation.group,
 				title = annotation.title,
+				titleBackground = undefined,
 				shape = annotation.shape,
 				options = annotation.options,
 				titleOptions = options.title,
@@ -528,6 +556,10 @@
 			}
 
 			if (!title && titleOptions) {
+				if(titleOptions.style.fill) {
+					titleBackground = annotation.titleBackground = renderer.rect().attr({fill: titleOptions.style.fill});
+					titleBackground.add(group);
+				}
 				title = annotation.title = renderer.label(titleOptions);
 				title.add(group);
 			}
@@ -568,6 +600,7 @@
 				chart = this.chart,
 				group = this.group,
 				title = this.title,
+				titleBackground = this.titleBackground,
 				shape = this.shape,
 				linkedTo = this.linkedObject,
 				xAxis = chart.xAxis[options.xAxis],
@@ -576,6 +609,9 @@
 				height = options.height,
 				anchorY = ALIGN_FACTOR[options.anchorY],
 				anchorX = ALIGN_FACTOR[options.anchorX],
+				paddingX = 0,
+				paddingY = 0,
+				seriesRef = options.seriesRef ? chart.get(options.seriesRef) : undefined,
 				shapeParams,
 				linkType,
 				series,
@@ -616,6 +652,14 @@
 				return;
 			}
 
+			if (seriesRef) {
+				x = x + seriesRef.pointXOffset + seriesRef.barW / 2;
+				if(options.anchorX === 'left') {
+					x = x - seriesRef.barW / 2;
+				} else if (options.anchorX === 'right') {
+					x = x + seriesRef.barW / 2;
+				}
+			}
 
 			if (title) {
 				var attrs = options.title;
@@ -640,7 +684,7 @@
 						shapeParams.width = xAxis.toPixels(shapeParams.width + shapeParams.x) - xAxis.toPixels(shapeParams.x);
 						shapeParams.x = xAxis.toPixels(shapeParams.x);
 					} else if (shapeParams.width) {
-						shapeParams.width = realXAxis.toPixels(shapeParams.width) - realXAxis.toPixels(0);
+						shapeParams.width = seriesRef ? (seriesRef.barW * shapeParams.width) : (realXAxis.toPixels(shapeParams.width) - realXAxis.toPixels(0));
 					} else if (defined(shapeParams.x)) {
 						shapeParams.x = xAxis.toPixels(shapeParams.x);
 					}
@@ -670,6 +714,17 @@
 					shapeParams.x += shapeParams.r;
 					shapeParams.y += shapeParams.r;
 				}
+
+				if (shapeParams.paddingX) {
+					paddingX = shapeParams.paddingX;
+					shapeParams.width += 2 * paddingX;
+				}
+
+				if (shapeParams.paddingY) {
+					paddingY = shapeParams.paddingY;
+					shapeParams.height += 2 * paddingY;
+				}
+
 				shape.attr(shapeParams);
 			}
 
@@ -689,6 +744,16 @@
 
 				height = bbox.height;
 			}
+
+			if (titleBackground) {
+				titleBackground.attr({
+					x: (attrs.x||0),
+					y: (attrs.y||0),
+					width: width + 6,
+					height:height + 1
+				});
+			}
+
 			// Calculate anchor point
 			if (!isNumber(anchorX)) {
 				anchorX = ALIGN_FACTOR.center;
@@ -699,11 +764,43 @@
 			}
 
 			// Translate group according to its dimension and anchor point
-			x = x - width * anchorX;
-			y = y - height * anchorY;
+			x = x - (width - (anchorX == ALIGN_FACTOR.center ? 0 : paddingX)) * anchorX;
+			y = y - (height - (anchorY == ALIGN_FACTOR.center ? 0 : paddingY)) * anchorY;
+
+			if(options.constrain) {
+				var attrsX = attrs && defined(attrs.x) ? attrs.x : 0;
+				var attrsY = attrs && defined(attrs.y) ? attrs.y : 0;
+				
+				if(x + attrsX + bbox.width > chart.plotLeft + chart.plotWidth) {
+					x = chart.plotWidth + chart.plotLeft - bbox.width - attrsX - (title ? 5 : 0);
+				}
+				if(x + attrsX < chart.plotLeft) {
+					x = chart.plotLeft - attrsX;
+				}
+				if(y + attrsY + bbox.height + 15 > chart.plotTop + chart.plotHeight) {
+					y = chart.plotHeight + chart.plotTop - bbox.height - attrsY - 15;
+					if(seriesRef && options.anchorX === 'left') {
+						x = x + seriesRef.barW;
+					}
+				}
+				if(y + attrsY < chart.plotTop) {
+					y = chart.plotTop - attrsY;
+				}
+			}
 			
 			if (this.selectionMarker) {
 				this.events.select({}, this);
+			}
+
+			var getMaxAnimationDuration = function(series) {
+				var maxDuration = 0;
+				if(isArray(series)) {
+					for(var i=0; i<series.length; ++i) {
+						var duration = series[i].options.animation ? (series[i].options.animation.duration || 0) : 0;
+						maxDuration = (duration > maxDuration) ? duration : maxDuration;
+					}
+				}
+				return maxDuration;
 			}
 			
 			if (redraw && chart.animation && defined(group.translateX) && defined(group.translateY)) {
@@ -713,6 +810,12 @@
 				});
 			} else {
 				group.translate(x, y);
+				group.attr({opacity: 0});
+				setTimeout(function() {
+					group.animate({
+						opacity: 1
+					});
+				}, getMaxAnimationDuration(chart.series));
 			}
 		},
 
@@ -742,7 +845,7 @@
 				}
 			});
 
-			annotation.group = annotation.title = annotation.shape = annotation.chart = annotation.options = annotation.hasEvents = null;
+			annotation.group = annotation.title = annotation.titleBackground = annotation.shape = annotation.chart = annotation.options = annotation.hasEvents = null;
 		},
 
 		/*
@@ -1001,12 +1104,7 @@
 				clip = ann.clipPaths[i];
 				
 				if (clip) {
-					clip.attr({
-						x: y.left,
-						y: y.top,
-						width: y.width,
-						height: y.height
-					});
+					clip.attr(createClipBox(chart, y));
 				} else {
 					var clipPath = createClipPath(chart, y);
 					ann.clipPaths.push(clipPath);
