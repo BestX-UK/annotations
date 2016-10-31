@@ -749,7 +749,7 @@
 				titleBackground.attr({
 					x: (attrs.x||0),
 					y: (attrs.y||0),
-					width: width + 6,
+					width: width + 1,
 					height:height + 1
 				});
 			}
@@ -796,7 +796,7 @@
 				var maxDuration = 0;
 				if(isArray(series)) {
 					for(var i=0; i<series.length; ++i) {
-						var duration = series[i].options.animation ? (series[i].options.animation.duration || 0) : 0;
+						var duration = (typeof series[i].options.animation === 'object') ? (series[i].options.animation.duration || 0) : (series[i].options.animation === false ? 0 : 1000);
 						maxDuration = (duration > maxDuration) ? duration : maxDuration;
 					}
 				}
@@ -810,12 +810,15 @@
 				});
 			} else {
 				group.translate(x, y);
-				group.attr({opacity: 0});
-				setTimeout(function() {
-					group.animate({
-						opacity: 1
-					});
-				}, getMaxAnimationDuration(chart.series));
+				var animationTimeout = getMaxAnimationDuration(chart.series);
+				if(animationTimeout > 0) {
+					group.attr({opacity: 0});
+					setTimeout(function() {
+						group.animate({
+							opacity: 1
+						});
+					}, animationTimeout);
+				}
 			}
 		},
 
