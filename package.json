@@ -1,6 +1,6 @@
 {
   "name": "highcharts-annotations-bestx",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Highcharts plugin to add dynamic annotations to charts. Fork of http://blacklabel.github.io/annotations/",
   "main": "js/annotations.js",
   "repository": {

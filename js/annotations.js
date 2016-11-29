@@ -557,6 +557,9 @@
 
 			if (!title && titleOptions) {
 				if(titleOptions.style && titleOptions.style.textOutlineColor) {
+					// We need these here else something style gets written as [Object Object]
+					titleOptions.style['stroke'] = 'rgba(0,0,0,0)';
+					titleOptions.style['stroke-width'] = '0px';
 					titleBackground = annotation.titleBackground = renderer.label(titleOptions);
 					titleBackground.add(group);
 				}
