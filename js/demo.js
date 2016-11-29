@@ -25,7 +25,9 @@ $(function () {
 			title: {
 				text: '<span style="">drag me anywhere <br> dblclick to remove</span>',
 				style: {
-					color: 'red'
+					color: 'red',
+					textOutlineColor: 'yellow',
+					textOutlineWidth: '6px'
 				}
 			},
 			anchorX: 'left',

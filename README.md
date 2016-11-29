@@ -122,6 +122,14 @@ You may also want to check our other demo here: <a href="http://demo.blacklabel.
 <td align="left"> Title font size</td>
 </tr>
 <tr>
+<td align="left">title.style.textOutlineColor              </td>
+<td align="left"> Title outline color</td>
+</tr>
+<tr>
+<td align="left">title.style.textOutlineWidth              </td>
+<td align="left"> Title outline width. Ignored if title.style.textOutlineColor is not specified. Defaults to 2px.</td>
+</tr>
+<tr>
 <td align="left">shape                                     </td>
 <td align="left"> Shape configuration object</td>
 </tr>

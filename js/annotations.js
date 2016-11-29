@@ -556,8 +556,8 @@
 			}
 
 			if (!title && titleOptions) {
-				if(titleOptions.style.fill) {
-					titleBackground = annotation.titleBackground = renderer.rect().attr({fill: titleOptions.style.fill});
+				if(titleOptions.style && titleOptions.style.textOutlineColor) {
+					titleBackground = annotation.titleBackground = renderer.label(titleOptions);
 					titleBackground.add(group);
 				}
 				title = annotation.title = renderer.label(titleOptions);
@@ -672,6 +672,23 @@
 				}
 				title.css(options.title.style);
 			}
+			if (titleBackground) {
+				var attrs = options.title;
+				if (isOldIE) {
+					titleBackground.attr({
+						text: attrs.text
+					});
+				} else {
+					titleBackground.attr(attrs);
+				}
+				titleBackground.css(options.title.style);
+				if(options.title.style) {
+					titleBackground.css({
+						stroke: options.title.style.textOutlineColor,
+						'stroke-width': options.title.style.textOutlineWidth
+					});
+				}
+			}
 
 			if (shape) {
 				shapeParams = extend({}, options.shape.params);
@@ -743,15 +760,6 @@
 				}
 
 				height = bbox.height;
-			}
-
-			if (titleBackground) {
-				titleBackground.attr({
-					x: (attrs.x||0),
-					y: (attrs.y||0),
-					width: width + 1,
-					height:height + 1
-				});
 			}
 
 			// Calculate anchor point
