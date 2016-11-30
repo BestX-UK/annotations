@@ -765,6 +765,13 @@
 				height = bbox.height;
 			}
 
+			if (title && yAxis.isRadial) {
+				var pt = yAxis.getPosition(options.value, yAxis.center[2] / 2 + options.distance);
+				var ctr = yAxis.getPosition(options.value, 0);
+				x = pt.x;
+				y = pt.y;
+			}
+
 			// Calculate anchor point
 			if (!isNumber(anchorX)) {
 				anchorX = ALIGN_FACTOR.center;
