@@ -498,6 +498,20 @@
 		});
 	}
 
+	function translateTitlePlaceholderText(title, options, xy) {
+		if(options) {
+			options['orig_'+xy] = options['orig_'+xy] || options[xy];
+			if(options['orig_'+xy] == 'WIDTH' || options['orig_'+xy] == '-WIDTH') {
+				options[xy] = title.width;
+				options[xy] *= options['orig_'+xy] == 'WIDTH' ? 1 : -1;
+			}
+			if(options['orig_'+xy] == 'HEIGHT' || options['orig_'+xy] == '-HEIGHT') {
+				options[xy] = title.height;
+				options[xy] *= options['orig_'+xy] == 'HEIGHT' ? 1 : -1;
+			}
+		}
+	}
+
 	// Define annotation prototype
 	var Annotation = function () { // eslint-disable-line
 		this.init.apply(this, arguments);
@@ -674,6 +688,11 @@
 					title.attr(attrs);
 				}
 				title.css(options.title.style);
+				// we need to wait for width and height to be calculated
+				translateTitlePlaceholderText(title, attrs, 'x');
+				translateTitlePlaceholderText(title, attrs, 'y');
+				// to apply the translated x and y values
+				title.attr(attrs);
 			}
 			if (titleBackground) {
 				var attrs = options.title;
