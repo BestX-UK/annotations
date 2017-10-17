@@ -781,14 +781,28 @@
 					shapeParams.y += shapeParams.r;
 				}
 
+				if (options.shape.fit && title) {
+					var titleBBox = title.getBBox();
+					shapeParams.width = titleBBox.width;
+					shapeParams.height = titleBBox.height;
+					shapeParams.x = titleBBox.x + (options.title.x || 0);
+					shapeParams.y = titleBBox.y + (options.title.y || 0);
+				}
+
 				if (shapeParams.paddingX) {
 					paddingX = shapeParams.paddingX;
 					shapeParams.width += 2 * paddingX;
+					if(options.shape.fit) {
+						shapeParams.x -= paddingX;
+					}
 				}
 
 				if (shapeParams.paddingY) {
 					paddingY = shapeParams.paddingY;
 					shapeParams.height += 2 * paddingY;
+					if(options.shape.fit) {
+						shapeParams.y -= paddingY;
+					}
 				}
 
 				shape.attr(shapeParams);
