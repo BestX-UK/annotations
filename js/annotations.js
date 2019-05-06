@@ -68,6 +68,21 @@
 		}
 	});
 
+	// overriding to support special tokens MIN and MAX as xValue and yValue
+	H.Axis.prototype.oldToPixels = H.Axis.prototype.toPixels;
+	H.Axis.prototype.toPixels = function (value, paneCoordinates) {
+		if(typeof value === 'number')
+			return this.oldToPixels(value, paneCoordinates);
+		var parts = /(M[AI][XN])([+-])?(\d+)?/.exec(value);
+		if(parts && parts.length == 4) {
+			var baseValue = parts[1] == 'MAX' ? this.max : this.min;
+			var sign = parts[2] == '-' ? -1 : 1;
+			var offset = parts[3] ? parseInt(parts[3]) : 0;
+			return this.oldToPixels(baseValue, paneCoordinates) + sign * offset;
+		}
+		return NaN;
+	};
+
 	// utils for buttons
 	var utils = {
 		getRadius: function (e) {
@@ -334,8 +349,10 @@
 			arc = 0;
 
 		while (i < len) {
-			if (typeof d[i] === 'number' && typeof d[i + 1] === 'number'
-				&& (arc == 5 || arc == 1 || arc == 0) // start points of arc || end points of arc || not arc
+			if (
+				(typeof d[i] === 'number' || (''+d[i]).indexOf('MAX')==0 || (''+d[i]).indexOf('MIN')==0) &&
+				(typeof d[i + 1] === 'number' || ''+(d[i + 1]).indexOf('MAX')==0 || (''+d[i + 1]).indexOf('MIN')==0) &&
+				(arc == 5 || arc == 1 || arc == 0) // start points of arc || end points of arc || not arc
 			) {
 				if(yAxis.isRadial) {
 					var radius = yAxis.center[2] / 2;
@@ -350,8 +367,8 @@
 						path[i+1] = pt.y;
 					}
 				} else {
-					path[i] = xAxis.toPixels(d[i]) - xOffset;
-					path[i + 1] = yAxis.toPixels(d[i + 1]) - yOffset;
+				path[i] = xAxis.toPixels(d[i]) - xOffset;
+				path[i + 1] = yAxis.toPixels(d[i + 1]) - yOffset;
 				}
 				i += 2;
 			} else {
@@ -363,7 +380,7 @@
 			}
 			if(arc > 0) {
 				arc--;
-			}
+		}
 		}
 
 		return path;
@@ -388,7 +405,7 @@
 			height: ref.height
 		};
 	}
-
+				
 	function createClipPath(chart, y) {
 		var clipBox = createClipBox(chart, y);
 		return chart.renderer.clipRect(clipBox);
@@ -565,8 +582,18 @@
 			}
 
 			if (!shape && shapeOptions && inArray(shapeOptions.type, H.ALLOWED_SHAPES) !== -1) {
+				// Path points dont get translated until redraw is called. Here we just want a shape object to get created.
+				// So we set path points to empty array and restore it back right after the addition
+				var shapeOptionsParamsD = undefined;
+				if(shapeOptions.type === 'path') {
+					shapeOptionsParamsD = shapeOptions.params.d;
+					shapeOptions.params.d = [];
+				}
 				shape = annotation.shape = shapeOptions.type === 'rect' ? renderer[options.shape.type]().attr(shapeOptions.params) : renderer[options.shape.type](shapeOptions.params);
 				shape.add(group);
+				if(shapeOptionsParamsD) {
+					shapeOptions.params.d = shapeOptionsParamsD;
+				}
 			}
 
 			if (!title && titleOptions) {
@@ -702,7 +729,7 @@
 					});
 				} else {
 					titleBackground.attr(attrs);
-				}
+			}
 				titleBackground.css(options.title.style);
 				if(options.title.style) {
 					titleBackground.css({
@@ -754,14 +781,28 @@
 					shapeParams.y += shapeParams.r;
 				}
 
+				if (options.shape.fit && title) {
+					var titleBBox = title.getBBox();
+					shapeParams.width = titleBBox.width;
+					shapeParams.height = titleBBox.height;
+					shapeParams.x = titleBBox.x + (options.title.x || 0);
+					shapeParams.y = titleBBox.y + (options.title.y || 0);
+				}
+
 				if (shapeParams.paddingX) {
 					paddingX = shapeParams.paddingX;
 					shapeParams.width += 2 * paddingX;
+					if(options.shape.fit) {
+						shapeParams.x -= paddingX;
+					}
 				}
 
 				if (shapeParams.paddingY) {
 					paddingY = shapeParams.paddingY;
 					shapeParams.height += 2 * paddingY;
+					if(options.shape.fit) {
+						shapeParams.y -= paddingY;
+					}
 				}
 
 				shape.attr(shapeParams);
@@ -828,7 +869,7 @@
 			if (this.selectionMarker) {
 				this.events.select({}, this);
 			}
-
+			
 			var getMaxAnimationDuration = function(series) {
 				var maxDuration = 0;
 				if(isArray(series)) {
@@ -855,7 +896,7 @@
 							opacity: 1
 						});
 					}, animationTimeout);
-				}
+			}
 			}
 		},
 
