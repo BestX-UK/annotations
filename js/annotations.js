@@ -640,6 +640,7 @@
 		 * Redraw the annotation title or shape after options update
 		 */
 		redraw: function (redraw) {
+			this.linkObjects();		// Initial call is too early, so calling again to link objects
 			var options = this.options,
 				chart = this.chart,
 				group = this.group,
